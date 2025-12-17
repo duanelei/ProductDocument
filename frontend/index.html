@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI产品文档审查系统</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>AI产品文档审查系统</h1>
+            <p>基于人工智能的智能文档质量分析工具</p>
+        </header>
+
+        <main>
+            <!-- API配置区域 -->
+            <section class="config-section">
+                <h2>AI服务配置</h2>
+                <div class="config-form">
+                    <div class="form-group">
+                        <label for="provider">AI服务提供商:</label>
+                        <select id="provider" class="form-control">
+                            <option value="openai">OpenAI GPT-4o-mini</option>
+                            <option value="deepseek">DeepSeek</option>
+                            <option value="custom">自定义API</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="apiKey">API密钥:</label>
+                        <input type="password" id="apiKey" class="form-control" placeholder="请输入API密钥">
+                    </div>
+
+                    <div id="customConfig" class="custom-config" style="display: none;">
+                        <div class="form-group">
+                            <label for="customApiUrl">自定义API地址:</label>
+                            <input type="url" id="customApiUrl" class="form-control" placeholder="https://api.example.com/v1/chat/completions">
+                        </div>
+                        <div class="form-group">
+                            <label for="customModel">自定义模型名称:</label>
+                            <input type="text" id="customModel" class="form-control" placeholder="模型名称">
+                        </div>
+                    </div>
+
+                    <button id="testApi" class="btn btn-secondary">测试连接</button>
+                </div>
+            </section>
+
+            <!-- 文件上传区域 -->
+            <section class="upload-section">
+                <h2>文档上传</h2>
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-content">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14,2 14,8 20,8"></polyline>
+                            <line x1="16" y1="13" x2="8" y2="13"></line>
+                            <line x1="16" y1="17" x2="8" y2="17"></line>
+                            <polyline points="10,9 9,9 8,9"></polyline>
+                        </svg>
+                        <p>拖拽PDF文件到此区域，或点击选择文件</p>
+                        <input type="file" id="fileInput" accept=".pdf" style="display: none;">
+                    </div>
+                </div>
+                <div id="fileInfo" class="file-info"></div>
+            </section>
+
+            <!-- 分析控制区域 -->
+            <section class="control-section" style="display: none;" id="controlSection">
+                <h2>分析控制</h2>
+                <div class="control-buttons">
+                    <button id="startAnalysis" class="btn btn-primary">开始分析</button>
+                    <button id="continueAnalysis" class="btn btn-success" style="display: none;">继续分析</button>
+                    <button id="stopAnalysis" class="btn btn-danger" style="display: none;">停止分析</button>
+                </div>
+            </section>
+
+            <!-- 整合的分析区域 -->
+            <section class="analysis-section" style="display: none;" id="analysisSection">
+                <h2>分析进行中</h2>
+                <div class="analysis-header">
+                    <div class="progress-container">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFill"></div>
+                        </div>
+                        <div class="progress-text" id="progressText">准备开始分析...</div>
+                    </div>
+                    
+                    <!-- Token统计 -->
+                    <div class="token-stats">
+                        <div class="token-item">
+                            <span class="token-label">使用Token:</span>
+                            <span class="token-value" id="tokenCount">0</span>
+                        </div>
+                        <div class="token-item">
+                            <span class="token-label">估算费用:</span>
+                            <span class="token-value" id="tokenCost">$0.00</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 可点击的进度阶段 -->
+                <div class="stage-progress">
+                    <div class="stage clickable" id="stageStructure" data-tab="structure">
+                        <span class="stage-icon">📋</span>
+                        <span class="stage-name">文档结构分析</span>
+                        <span class="stage-status" id="statusStructure">等待开始</span>
+                    </div>
+                    <div class="stage clickable" id="stageDesign" data-tab="design">
+                        <span class="stage-icon">🎨</span>
+                        <span class="stage-name">设计缺陷检查</span>
+                        <span class="stage-status" id="statusDesign">等待开始</span>
+                    </div>
+                    <div class="stage clickable" id="stageLogic" data-tab="logic">
+                        <span class="stage-icon">🔍</span>
+                        <span class="stage-name">逻辑一致性分析</span>
+                        <span class="stage-status" id="statusLogic">等待开始</span>
+                    </div>
+                    <div class="stage clickable" id="stageRisk" data-tab="risk">
+                        <span class="stage-icon">⚠️</span>
+                        <span class="stage-name">风险评估</span>
+                        <span class="stage-status" id="statusRisk">等待开始</span>
+                    </div>
+                </div>
+                
+                <!-- 整合的内容区域 -->
+                <div class="analysis-content">
+                    <!-- 实时分析输出 -->
+                    <div class="tab-content">
+                        <div id="tabRealTime" class="tab-pane active">
+                            <h3>实时分析输出</h3>
+                            <div class="output-container">
+                                <div class="output-content" id="outputContent"></div>
+                            </div>
+                        </div>
+                        
+                        <!-- 文档结构结果 -->
+                        <div id="tabStructure" class="tab-pane">
+                            <h3>文档结构分析结果</h3>
+                            <div class="result-content" id="resultStructure"></div>
+                        </div>
+                        
+                        <!-- 设计缺陷结果 -->
+                        <div id="tabDesign" class="tab-pane">
+                            <h3>设计缺陷检查结果</h3>
+                            <div class="result-content" id="resultDesign"></div>
+                        </div>
+                        
+                        <!-- 逻辑一致性结果 -->
+                        <div id="tabLogic" class="tab-pane">
+                            <h3>逻辑一致性分析结果</h3>
+                            <div class="result-content" id="resultLogic"></div>
+                        </div>
+                        
+                        <!-- 风险评估结果 -->
+                        <div id="tabRisk" class="tab-pane">
+                            <h3>风险评估结果</h3>
+                            <div class="result-content" id="resultRisk"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- 导出按钮 -->
+                    <div class="export-actions" style="margin-top: 20px;">
+                        <button id="exportJson" class="btn btn-outline">导出JSON</button>
+                        <button id="exportPdf" class="btn btn-outline">导出PDF报告</button>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- 暂停确认弹窗 -->
+        <div id="pauseModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <h3 id="pauseModalTitle">文档结构分析完成</h3>
+                <div id="structurePreview" class="structure-preview"></div>
+                <p>当前阶段分析已完成，请确认后继续后续分析。</p>
+                <div class="modal-actions">
+                    <button id="confirmContinue" class="btn btn-primary">继续分析</button>
+                    <button id="cancelAnalysis" class="btn btn-secondary">取消分析</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 错误提示弹窗 -->
+        <div id="errorModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <h3>错误提示</h3>
+                <div id="errorMessage" class="error-message"></div>
+                <div class="modal-actions">
+                    <button id="closeError" class="btn btn-primary">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
