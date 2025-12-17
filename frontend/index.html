@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI产品文档审查系统</title>
     <link rel="stylesheet" href="styles.css">
+    <!-- PDF生成库 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -95,7 +98,7 @@
                         </div>
                         <div class="token-item">
                             <span class="token-label">估算费用:</span>
-                            <span class="token-value" id="tokenCost">$0.00</span>
+                            <span class="token-value" id="tokenCost">¥0.00</span>
                         </div>
                     </div>
                 </div>
@@ -121,6 +124,11 @@
                         <span class="stage-icon">⚠️</span>
                         <span class="stage-name">风险评估</span>
                         <span class="stage-status" id="statusRisk">等待开始</span>
+                    </div>
+                    <div class="stage clickable" id="stageSummary" data-tab="summary">
+                        <span class="stage-icon">📊</span>
+                        <span class="stage-name">综合总结</span>
+                        <span class="stage-status" id="statusSummary">等待开始</span>
                     </div>
                 </div>
                 
@@ -157,6 +165,12 @@
                         <div id="tabRisk" class="tab-pane">
                             <h3>风险评估结果</h3>
                             <div class="result-content" id="resultRisk"></div>
+                        </div>
+                        
+                        <!-- 综合总结 -->
+                        <div id="tabSummary" class="tab-pane">
+                            <h3>综合总结</h3>
+                            <div class="result-content" id="resultSummary"></div>
                         </div>
                     </div>
                     

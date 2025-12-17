@@ -178,10 +178,27 @@ app.post('/api/analyze', async (req, res) => {
             }
         }
         
-        // 包含总token使用数据
+        // 生成综合总结
+        const comprehensiveSummary = await documentProcessor.generateComprehensiveSummary(
+            session.analysisResults,
+            provider,
+            apiKey,
+            customApiUrl,
+            customModel
+        );
+        
+        // 更新总token使用量，包括总结生成的token
+        if (comprehensiveSummary.tokenUsage) {
+            totalTokenUsage.prompt_tokens += comprehensiveSummary.tokenUsage.prompt_tokens || 0;
+            totalTokenUsage.completion_tokens += comprehensiveSummary.tokenUsage.completion_tokens || 0;
+            totalTokenUsage.total += comprehensiveSummary.tokenUsage.total || 0;
+        }
+        
+        // 包含总token使用数据和综合总结
         const finalResponseData = { 
             stage: 'complete', 
             data: session.analysisResults,
+            comprehensiveSummary: comprehensiveSummary.summary,
             totalTokenUsage
         };
         
@@ -303,10 +320,27 @@ app.post('/api/analyze/continue', async (req, res) => {
         }
     }
     
-    // 包含总token使用数据
+    // 生成综合总结
+    const comprehensiveSummary = await documentProcessor.generateComprehensiveSummary(
+        session.analysisResults,
+        provider || session.provider,
+        apiKey || session.apiKey,
+        customApiUrl || session.customApiUrl,
+        customModel || session.customModel
+    );
+    
+    // 更新总token使用量，包括总结生成的token
+    if (comprehensiveSummary.tokenUsage) {
+        totalTokenUsage.prompt_tokens += comprehensiveSummary.tokenUsage.prompt_tokens || 0;
+        totalTokenUsage.completion_tokens += comprehensiveSummary.tokenUsage.completion_tokens || 0;
+        totalTokenUsage.total += comprehensiveSummary.tokenUsage.total || 0;
+    }
+    
+    // 包含总token使用数据和综合总结
     const responseData = { 
         stage: 'complete', 
         data: session.analysisResults,
+        comprehensiveSummary: comprehensiveSummary.summary,
         totalTokenUsage
     };
     

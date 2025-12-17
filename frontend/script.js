@@ -7,7 +7,7 @@ class DocumentReviewSystem {
         this.eventSource = null;
         this.tokenCount = 0;
         this.tokenCost = 0;
-        this.tokenRate = 0.0000105; // 默认每token费用：¥0.0000105 (GPT-4o-mini，按1美元=7人民币计算)
+        this.tokenRate = 0.00000105; // 正确的每token费用：¥0.00000105 (GPT-4o-mini，按1美元=7人民币计算)
         
         this.initializeEventListeners();
         this.loadConfigFromStorage();
@@ -270,10 +270,7 @@ class DocumentReviewSystem {
     }
 
     async continueAnalysis() {
-        if (!this.currentFileId) {
-            this.showError('没有找到有效的分析会话');
-            return;
-        }
+        if (!this.validateConfig()) return;
 
         this.isAnalyzing = true;
         this.updateUIForAnalysisContinue();
@@ -338,6 +335,33 @@ class DocumentReviewSystem {
         
         // 不再使用EventSource，移除相关代码
         this.updateUIForAnalysisStop();
+    }
+
+    hidePauseModal() {
+        document.getElementById('pauseModal').style.display = 'none';
+    }
+
+    handleAnalysisComplete(results) {
+        this.isAnalyzing = false;
+        this.analysisSession = results;
+        
+        // 更新所有阶段状态，包括综合总结
+        ['structure', 'design', 'logic', 'risk', 'summary'].forEach(stage => {
+            this.updateStageProgress(stage, '已完成');
+        });
+        
+        this.updateProgressBar('complete');
+        document.getElementById('progressText').textContent = '分析完成！';
+        
+        // 填充结果内容
+        this.displayResults(results);
+        
+        // 专门处理综合总结，确保它被显示
+        if (this.analysisSession && this.analysisSession.comprehensiveSummary) {
+            this.displayComprehensiveSummary(this.analysisSession.comprehensiveSummary);
+        }
+        
+        this.showSuccess('文档分析完成！');
     }
 
     handleStreamData(data) {
@@ -422,13 +446,21 @@ class DocumentReviewSystem {
                     this.tokenCost = 0;
                     this.updateTokenStats(data.totalTokenUsage);
                 }
-                this.handleAnalysisComplete(data.data);
+                
+                // 保存综合总结
+                this.analysisSession = data.data;
+                if (data.comprehensiveSummary) {
+                    this.analysisSession.comprehensiveSummary = data.comprehensiveSummary;
+                }
+                
+                // 直接调用handleAnalysisComplete，传入完整的分析数据
+                this.handleAnalysisComplete(this.analysisSession);
                 break;
         }
 
         this.updateProgressBar(data.stage);
     }
-    
+
     updateProgressBar(stage) {
         let progress = 0;
         
@@ -464,6 +496,7 @@ class DocumentReviewSystem {
             design: '设计缺陷检查',
             logic: '逻辑一致性分析',
             risk: '风险评估',
+            summary: '综合总结',
             paused: '暂停确认',
             complete: '分析完成'
         };
@@ -512,24 +545,6 @@ class DocumentReviewSystem {
         document.getElementById('pauseModal').style.display = 'none';
     }
 
-    handleAnalysisComplete(results) {
-        this.isAnalyzing = false;
-        this.analysisSession = results;
-        
-        // 更新所有阶段状态
-        ['structure', 'design', 'logic', 'risk'].forEach(stage => {
-            this.updateStageProgress(stage, '已完成');
-        });
-        
-        this.updateProgressBar('complete');
-        document.getElementById('progressText').textContent = '分析完成！';
-        
-        // 填充结果内容
-        this.displayResults(results);
-        
-        this.showSuccess('文档分析完成！');
-    }
-
     displayResults(results) {
         if (results.structure) {
             this.updateResultContent('structure', results.structure);
@@ -545,6 +560,11 @@ class DocumentReviewSystem {
         
         if (results.risk) {
             this.updateResultContent('risk', results.risk);
+        }
+        
+        // 显示综合总结
+        if (this.analysisSession && this.analysisSession.comprehensiveSummary) {
+            this.displayComprehensiveSummary(this.analysisSession.comprehensiveSummary);
         }
     }
     
@@ -564,7 +584,20 @@ class DocumentReviewSystem {
     }
 
     formatResultContent(content) {
-        return content.replace(/\n/g, '<br>').replace(/\d+\./g, '<strong>$&</strong>');
+        // 先将换行符替换为<br>
+        let formattedContent = content.replace(/\n/g, '<br>');
+        
+        // 将数字列表项加粗
+        formattedContent = formattedContent.replace(/\d+\./g, '<strong>$&</strong>');
+        
+        // 突出显示评分部分
+        formattedContent = formattedContent.replace(/(5\.\s*综合评分\s*：?\s*[0-9]+(\.[0-9]+)?)分?/gi, '<div class="rating-section"><strong>$1分</strong></div>');
+        formattedContent = formattedContent.replace(/(5\.\s*综合评分\s*：?\s*[0-9]+(\.[0-9]+)?)\s*分?/gi, '<div class="rating-section"><strong>$1分</strong></div>');
+        
+        // 突出显示评分标题
+        formattedContent = formattedContent.replace(/(5\.\s*综合评分)/gi, '<strong>$1</strong>');
+        
+        return formattedContent;
     }
     
     switchTab(tabName) {
@@ -644,9 +677,147 @@ class DocumentReviewSystem {
             const dataStr = JSON.stringify(this.analysisSession, null, 2);
             const dataBlob = new Blob([dataStr], { type: 'application/json' });
             this.downloadFile(dataBlob, 'analysis-results.json');
-        } else {
-            // PDF导出功能可以后续实现
-            this.showWarning('PDF导出功能正在开发中，请先使用JSON导出');
+        } else if (format === 'pdf') {
+            this.generatePDF();
+        }
+    }
+
+    async generatePDF() {
+        try {
+            // 显示生成中提示
+            this.showNotification('正在生成PDF报告...', 'success');
+            
+            // 导入jsPDF
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('p', 'mm', 'a4');
+            
+            // 设置基本字体
+            doc.setFont('helvetica');
+            
+            let yPos = 20;
+            const lineHeight = 6;
+            const paragraphSpacing = lineHeight * 1.5;
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const margin = 15;
+            const indent = 5;
+            const contentWidth = pageWidth - 2 * margin;
+            
+            // 添加报告标题，使用上传的文件名称
+            const fileName = this.currentFile ? this.currentFile.name.replace('.pdf', '') : '文档';
+            doc.setFontSize(20);
+            doc.setFont('helvetica', 'bold');
+            doc.text(`${fileName} - 审查报告`, margin, yPos, { align: 'center' });
+            yPos += lineHeight * 2.5;
+            
+            // 添加生成信息
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'normal');
+            doc.text(`生成时间: ${new Date().toLocaleString('zh-CN')}`, margin, yPos, { align: 'center' });
+            yPos += lineHeight * 2;
+            
+            // 添加分隔线
+            doc.setLineWidth(0.8);
+            doc.line(margin, yPos, pageWidth - margin, yPos);
+            yPos += lineHeight * 2.5;
+            
+            // 处理文本格式的辅助函数
+            const processText = (text) => {
+                // 移除HTML标签
+                let plainText = text.replace(/<[^>]*>/g, '');
+                // 处理换行符
+                plainText = plainText.replace(/\n\s*\n/g, '\n'); // 移除多余空行
+                plainText = plainText.replace(/\s+/g, ' '); // 处理多余空格
+                return plainText;
+            };
+            
+            // 处理段落的辅助函数
+            const processParagraphs = (text) => {
+                let paragraphs = text.split(/\n/g);
+                paragraphs = paragraphs.filter(paragraph => paragraph.trim().length > 0);
+                return paragraphs;
+            };
+            
+            // 添加段落的辅助函数
+            const addParagraph = (text, hasIndent = true) => {
+                // 检查是否需要新页面
+                if (yPos > 270) {
+                    doc.addPage();
+                    yPos = 20;
+                }
+                
+                // 设置段落起始位置
+                const startX = hasIndent ? margin + indent : margin;
+                const textWidth = hasIndent ? contentWidth - indent : contentWidth;
+                
+                // 分割文本并添加到PDF
+                const lines = doc.splitTextToSize(text, textWidth);
+                
+                // 添加段落
+                doc.text(lines, startX, yPos);
+                yPos += lines.length * lineHeight + paragraphSpacing;
+            };
+            
+            // 添加章节的辅助函数
+            const addChapter = (title, content) => {
+                // 检查是否需要新页面
+                if (yPos > 260) {
+                    doc.addPage();
+                    yPos = 20;
+                }
+                
+                // 添加章节标题
+                doc.setFontSize(14);
+                doc.setFont('helvetica', 'bold');
+                doc.text(title, margin, yPos);
+                yPos += lineHeight * 2;
+                
+                // 设置正文字体
+                doc.setFontSize(11);
+                doc.setFont('helvetica', 'normal');
+                
+                // 处理内容
+                const processedText = processText(content);
+                const paragraphs = processParagraphs(processedText);
+                
+                // 添加段落
+                paragraphs.forEach((paragraph, index) => {
+                    // 首段缩进，后续段落也缩进
+                    addParagraph(paragraph, true);
+                });
+            };
+            
+            // 添加综合总结
+            if (this.analysisSession.comprehensiveSummary) {
+                addChapter('一、综合总结', this.analysisSession.comprehensiveSummary);
+            }
+            
+            // 添加文档结构分析
+            if (this.analysisSession.structure) {
+                addChapter('二、文档结构分析', this.analysisSession.structure.analysis);
+            }
+            
+            // 添加设计缺陷检查
+            if (this.analysisSession.design) {
+                addChapter('三、设计缺陷检查', this.analysisSession.design.analysis);
+            }
+            
+            // 添加逻辑一致性分析
+            if (this.analysisSession.logic) {
+                addChapter('四、逻辑一致性分析', this.analysisSession.logic.analysis);
+            }
+            
+            // 添加风险评估
+            if (this.analysisSession.risk) {
+                addChapter('五、风险评估', this.analysisSession.risk.analysis);
+            }
+            
+            // 保存PDF
+            doc.save('analysis-report.pdf');
+            
+            this.showSuccess('PDF报告生成成功！');
+        } catch (error) {
+            console.error('生成PDF失败:', error);
+            this.showError('生成PDF失败，请重试');
         }
     }
 
@@ -717,6 +888,19 @@ class DocumentReviewSystem {
         }
     }
 
+    displayComprehensiveSummary(summary) {
+        const resultElement = document.getElementById('resultSummary');
+        if (resultElement) {
+            resultElement.innerHTML = this.formatResultContent(summary);
+        }
+        
+        // 更新综合总结阶段状态
+        const tabBtn = document.querySelector(`[data-tab="summary"]`);
+        if (tabBtn) {
+            tabBtn.classList.add('completed');
+        }
+    }
+    
     resetAnalysis() {
         this.currentFile = null;
         this.currentFileId = null;
@@ -727,7 +911,8 @@ class DocumentReviewSystem {
         document.getElementById('controlSection').style.display = 'none';
         document.getElementById('analysisSection').style.display = 'none';
         
-        ['structure', 'design', 'logic', 'risk'].forEach(stage => {
+        // 重置所有阶段状态，包括综合总结
+        ['structure', 'design', 'logic', 'risk', 'summary'].forEach(stage => {
             this.updateStageProgress(stage, '等待开始');
         });
         

@@ -1,0 +1,23 @@
+{
+  "name": "ai-document-review-system",
+  "version": "1.0.0",
+  "description": "AI产品文档审查系统 - 基于人工智能的智能文档质量分析工具",
+  "main": "backend/server.js",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && python -m http.server 8080",
+    "start": "cd backend && npm start",
+    "build": "cd backend && npm install",
+    "pm2:start": "cd backend && pm2 start server.js --name ai-document-review",
+    "docker:build": "docker build -t ai-document-review .",
+    "docker:run": "docker run -p 3001:3001 ai-document-review",
+    "deploy": "echo '部署到腾讯云或其他云平台'"
+  },
+  "keywords": ["ai", "document", "review", "pdf", "analysis"],
+  "author": "AI Document Review Team",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^7.6.0"
+  }
+}
