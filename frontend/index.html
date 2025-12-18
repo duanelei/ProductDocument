@@ -8,6 +8,8 @@
     <!-- PDF生成库 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- 中文字体支持 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.68/vfs_fonts.js"></script>
 </head>
 <body>
     <div class="container">
@@ -76,6 +78,7 @@
                     <button id="startAnalysis" class="btn btn-primary">开始分析</button>
                     <button id="continueAnalysis" class="btn btn-success" style="display: none;">继续分析</button>
                     <button id="stopAnalysis" class="btn btn-danger" style="display: none;">停止分析</button>
+                    <button id="testPdfGeneration" class="btn btn-info">测试PDF生成</button>
                 </div>
             </section>
 

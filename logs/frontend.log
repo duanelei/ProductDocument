@@ -1,6 +1,11 @@
-::1 - - [17/Dec/2025 19:25:36] "GET / HTTP/1.1" 304 -
-::1 - - [17/Dec/2025 19:25:36] "GET /styles.css HTTP/1.1" 304 -
-::1 - - [17/Dec/2025 19:25:36] "GET /script.js HTTP/1.1" 200 -
-::1 - - [17/Dec/2025 19:25:36] code 404, message File not found
-::1 - - [17/Dec/2025 19:25:36] "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 -
-^C
+::1 - - [18/Dec/2025 14:55:27] "GET / HTTP/1.1" 200 -
+::1 - - [18/Dec/2025 14:55:27] "GET /script.js HTTP/1.1" 200 -
+::1 - - [18/Dec/2025 14:55:27] code 404, message File not found
+::1 - - [18/Dec/2025 14:55:27] "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 -
+::1 - - [18/Dec/2025 15:02:35] "GET /styles.css HTTP/1.1" 304 -
+::1 - - [18/Dec/2025 15:03:08] code 404, message File not found
+::1 - - [18/Dec/2025 15:03:08] "GET /sourceMap/chrome/css/download_scan_popup.css.map HTTP/1.1" 404 -
+::1 - - [18/Dec/2025 15:03:08] code 404, message File not found
+::1 - - [18/Dec/2025 15:03:08] "GET /sourceMap/chrome/css/download_scan_popup.css.map HTTP/1.1" 404 -
+::1 - - [18/Dec/2025 15:03:08] code 404, message File not found
+::1 - - [18/Dec/2025 15:03:08] "GET /sourceMap/chrome/css/interactive_balloon.css.map HTTP/1.1" 404 -

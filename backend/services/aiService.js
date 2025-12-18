@@ -18,81 +18,140 @@ class AIService {
     const url = customUrl || this.providers.openai.baseUrl;
     const model = customModel || this.providers.openai.defaultModel;
     
-    const response = await axios.post(url, {
-      model: model,
-      messages: messages,
-      max_tokens: maxTokens,
-      temperature: 0.3,
-      stream: false
-    }, {
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
-      },
-      timeout: 30000
-    });
+    // 添加重试机制，最多重试3次
+    let retries = 0;
+    const maxRetries = 3;
+    const retryDelay = 2000; // 2秒重试间隔
+    
+    while (retries < maxRetries) {
+      try {
+        const response = await axios.post(url, {
+          model: model,
+          messages: messages,
+          max_tokens: maxTokens,
+          temperature: 0.3,
+          stream: false
+        }, {
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+          },
+          timeout: 60000 // 增加超时时间到60秒
+        });
 
-    return {
-      content: response.data.choices[0].message.content,
-      tokenUsage: {
-        prompt_tokens: response.data.usage.prompt_tokens,
-        completion_tokens: response.data.usage.completion_tokens,
-        total: response.data.usage.total_tokens
+        return {
+          content: response.data.choices[0].message.content,
+          tokenUsage: {
+            prompt_tokens: response.data.usage.prompt_tokens,
+            completion_tokens: response.data.usage.completion_tokens,
+            total: response.data.usage.total_tokens
+          }
+        };
+      } catch (error) {
+        retries++;
+        if (retries >= maxRetries) {
+          // 所有重试都失败，抛出错误
+          throw error;
+        }
+        console.log(`OpenAI API调用失败，正在重试 (${retries}/${maxRetries})...`, error.message);
+        // 等待一段时间后重试
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
       }
-    };
+    }
   }
 
   async callDeepSeek(messages, maxTokens = 4000, apiKey, customUrl, customModel) {
     const url = customUrl || this.providers.deepseek.baseUrl;
     const model = customModel || this.providers.deepseek.defaultModel;
     
-    const response = await axios.post(url, {
-      model: model,
-      messages: messages,
-      max_tokens: maxTokens,
-      temperature: 0.3,
-      stream: false
-    }, {
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
-      },
-      timeout: 30000
-    });
+    // 添加重试机制，最多重试3次
+    let retries = 0;
+    const maxRetries = 3;
+    const retryDelay = 2000; // 2秒重试间隔
+    
+    while (retries < maxRetries) {
+      try {
+        const response = await axios.post(url, {
+          model: model,
+          messages: messages,
+          max_tokens: maxTokens,
+          temperature: 0.3,
+          stream: false
+        }, {
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+          },
+          timeout: 60000, // 增加超时时间到60秒
+          // 增加重试配置
+          retry: {
+            retries: 2,
+            retryDelay: (retryCount) => retryCount * 1000
+          }
+        });
 
-    return {
-      content: response.data.choices[0].message.content,
-      tokenUsage: {
-        prompt_tokens: response.data.usage.prompt_tokens,
-        completion_tokens: response.data.usage.completion_tokens,
-        total: response.data.usage.total_tokens
+        return {
+          content: response.data.choices[0].message.content,
+          tokenUsage: {
+            prompt_tokens: response.data.usage.prompt_tokens,
+            completion_tokens: response.data.usage.completion_tokens,
+            total: response.data.usage.total_tokens
+          }
+        };
+      } catch (error) {
+        retries++;
+        if (retries >= maxRetries) {
+          // 所有重试都失败，抛出错误
+          throw error;
+        }
+        console.log(`DeepSeek API调用失败，正在重试 (${retries}/${maxRetries})...`, error.message);
+        // 等待一段时间后重试
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
       }
-    };
+    }
   }
 
   async callCustomAPI(messages, maxTokens, apiKey, customUrl, customModel) {
-    const response = await axios.post(customUrl, {
-      model: customModel,
-      messages: messages,
-      max_tokens: maxTokens,
-      temperature: 0.3,
-      stream: false
-    }, {
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
-      },
-      timeout: 30000
-    });
+    // 添加重试机制，最多重试3次
+    let retries = 0;
+    const maxRetries = 3;
+    const retryDelay = 2000; // 2秒重试间隔
+    
+    while (retries < maxRetries) {
+      try {
+        const response = await axios.post(customUrl, {
+          model: customModel,
+          messages: messages,
+          max_tokens: maxTokens,
+          temperature: 0.3,
+          stream: false
+        }, {
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+          },
+          timeout: 60000 // 增加超时时间到60秒
+        });
 
-    return {
-      content: response.data.choices[0].message.content,
-      tokenUsage: {
-        prompt_tokens: response.data.usage?.prompt_tokens || 0,
-        completion_tokens: response.data.usage?.completion_tokens || 0,
-        total: response.data.usage?.total_tokens || 0
+        return {
+          content: response.data.choices[0].message.content,
+          tokenUsage: {
+            prompt_tokens: response.data.usage?.prompt_tokens || 0,
+            completion_tokens: response.data.usage?.completion_tokens || 0,
+            total: response.data.usage?.total_tokens || 0
+          }
+        };
+      } catch (error) {
+        retries++;
+        if (retries >= maxRetries) {
+          // 所有重试都失败，抛出错误
+          throw error;
+        }
+        console.log(`自定义API调用失败，正在重试 (${retries}/${maxRetries})...`, error.message);
+        // 等待一段时间后重试
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
       }
-    };
+    }
   }
 
   async callAIStream(provider, apiKey, messages, onProgress, customUrl, customModel) {
@@ -235,7 +294,7 @@ class AIService {
           throw new Error(`不支持的提供商: ${provider}`);
       }
 
-      return result && result.includes('测试成功');
+      return result && result.content && result.content.includes('测试成功');
     } catch (error) {
       console.error('API密钥验证失败:', error.message);
       return false;

@@ -88,6 +88,11 @@ class DocumentReviewSystem {
             this.exportResults('pdf');
         });
 
+        // 测试PDF生成按钮
+        document.getElementById('testPdfGeneration').addEventListener('click', () => {
+            this.mockAnalysisResults();
+        });
+
         // 弹窗控制
         document.getElementById('confirmContinue').addEventListener('click', () => {
             this.hidePauseModal();
@@ -201,6 +206,8 @@ class DocumentReviewSystem {
         this.updateUIForAnalysisStart();
 
         const config = this.getConfig();
+        // 保存this上下文，确保在回调中可用
+        const analyzerInstance = this;
 
         try {
             // 将ArrayBuffer转换为Base64字符串
@@ -244,7 +251,7 @@ class DocumentReviewSystem {
                         const dataStr = message.slice(6);
                         try {
                             const data = JSON.parse(dataStr);
-                            this.handleStreamData(data);
+                            analyzerInstance.handleStreamData(data);
                         } catch (e) {
                             console.error('解析SSE消息失败:', e);
                         }
@@ -254,8 +261,8 @@ class DocumentReviewSystem {
 
         } catch (error) {
             console.error('分析错误:', error);
-            this.showError(`分析失败: ${error.message}`);
-            this.stopAnalysis();
+            analyzerInstance.showError(`分析失败: ${error.message}`);
+            analyzerInstance.stopAnalysis();
         }
     }
     
@@ -276,6 +283,8 @@ class DocumentReviewSystem {
         this.updateUIForAnalysisContinue();
 
         const config = this.getConfig();
+        // 保存this上下文，确保在回调中可用
+        const analyzerInstance = this;
 
         try {
             // 发送继续分析请求并处理流式响应
@@ -315,7 +324,7 @@ class DocumentReviewSystem {
                         const dataStr = message.slice(6);
                         try {
                             const data = JSON.parse(dataStr);
-                            this.handleStreamData(data);
+                            analyzerInstance.handleStreamData(data);
                         } catch (e) {
                             console.error('解析SSE消息失败:', e);
                         }
@@ -325,8 +334,8 @@ class DocumentReviewSystem {
 
         } catch (error) {
             console.error('继续分析错误:', error);
-            this.showError(`继续分析失败: ${error.message}`);
-            this.stopAnalysis();
+            analyzerInstance.showError(`继续分析失败: ${error.message}`);
+            analyzerInstance.stopAnalysis();
         }
     }
 
@@ -438,6 +447,7 @@ class DocumentReviewSystem {
                 this.appendToOutput(data.chunk || data.message);
                 break;
                 
+
             case 'complete':
                 // 分析完成时，使用准确的总Token数据，避免重复计算
                 if (data.totalTokenUsage) {
@@ -460,6 +470,8 @@ class DocumentReviewSystem {
 
         this.updateProgressBar(data.stage);
     }
+    
+
 
     updateProgressBar(stage) {
         let progress = 0;
@@ -540,6 +552,34 @@ class DocumentReviewSystem {
         document.getElementById('pauseModal').style.display = 'flex';
         this.stopAnalysis();
     }
+    
+    // 添加一个测试方法来模拟分析结果，用于测试PDF生成
+    mockAnalysisResults() {
+        this.analysisSession = {
+            comprehensiveSummary: "这是一个综合总结的示例文本。测试中文编码是否正常显示。",
+            structure: {
+                analysis: "1. 文档结构分析结果示例\n\n文档标题明确，结构清晰，包含了产品概述、功能需求、技术规格等重要章节。\n\n2. 章节组织\n\n章节之间逻辑关系合理，遵循了从宏观到微观的描述顺序。\n\n5. 综合评分：8.5"
+            },
+            design: {
+                analysis: "1. 设计缺陷检查结果示例\n\n设计方案整体合理，但存在一些可以改进的地方。\n\n2. 设计亮点\n\n采用了模块化设计，便于后续扩展和维护。\n\n5. 综合评分：8.0"
+            },
+            logic: {
+                analysis: "1. 逻辑一致性分析结果示例\n\n文档中的逻辑关系总体一致，但存在少量前后矛盾的地方。\n\n2. 逻辑关系\n\n功能需求与技术规格之间的映射关系清晰。\n\n5. 综合评分：8.2"
+            },
+            risk: {
+                analysis: "1. 风险评估结果示例\n\n识别出了一些潜在风险，但都有相应的缓解措施。\n\n2. 主要风险\n\n市场风险、技术风险和进度风险是需要重点关注的领域。\n\n5. 综合评分：8.3"
+            }
+        };
+        // 更新阶段状态
+        this.updateStageProgress('structure', '已完成');
+        this.updateStageProgress('design', '已完成');
+        this.updateStageProgress('logic', '已完成');
+        this.updateStageProgress('risk', '已完成');
+        this.updateStageProgress('summary', '已完成');
+        // 更新UI
+        document.getElementById('analysisSection').style.display = 'block';
+        this.showSuccess('模拟分析结果已生成，可以测试PDF导出功能');
+    }
 
     hidePauseModal() {
         document.getElementById('pauseModal').style.display = 'none';
@@ -562,9 +602,10 @@ class DocumentReviewSystem {
             this.updateResultContent('risk', results.risk);
         }
         
-        // 显示综合总结
-        if (this.analysisSession && this.analysisSession.comprehensiveSummary) {
-            this.displayComprehensiveSummary(this.analysisSession.comprehensiveSummary);
+        // 显示综合总结 - 同时检查results和this.analysisSession
+        const summary = results.comprehensiveSummary || (this.analysisSession && this.analysisSession.comprehensiveSummary);
+        if (summary) {
+            this.displayComprehensiveSummary(summary);
         }
     }
     
@@ -689,135 +730,331 @@ class DocumentReviewSystem {
             
             // 导入jsPDF
             const { jsPDF } = window.jspdf;
-            const doc = new jsPDF('p', 'mm', 'a4');
+            const pdf = new jsPDF('p', 'mm', 'a4');
             
-            // 设置基本字体
-            doc.setFont('helvetica');
+            // 页面尺寸和边距设置 - 加大上下边距
+            const pageWidth = 210; // A4宽度，单位mm
+            const pageHeight = 297; // A4高度，单位mm
+            const marginLeftRight = 20; // 左右边距，单位mm
+            const marginTopBottom = 30; // 上下边距，单位mm（加大到30mm）
+            const contentWidth = pageWidth - 2 * marginLeftRight;
+            const contentHeight = pageHeight - 2 * marginTopBottom;
             
-            let yPos = 20;
-            const lineHeight = 6;
-            const paragraphSpacing = lineHeight * 1.5;
-            const pageWidth = doc.internal.pageSize.getWidth();
-            const margin = 15;
-            const indent = 5;
-            const contentWidth = pageWidth - 2 * margin;
+            let currentY = marginTopBottom; // 当前Y坐标
+            let pageNum = 1;
+            
+            // 创建一个临时容器来计算文本高度
+            const tempContainer = document.createElement('div');
+            tempContainer.style.position = 'absolute';
+            tempContainer.style.left = '-9999px';
+            tempContainer.style.width = `${contentWidth * 3.78}px`; // 转换为px，1mm = 3.78px
+            tempContainer.style.fontFamily = 'SimSun, Arial, sans-serif';
+            tempContainer.style.fontSize = '12px';
+            tempContainer.style.lineHeight = '1.8';
+            tempContainer.style.color = '#000000';
+            document.body.appendChild(tempContainer);
             
             // 添加报告标题，使用上传的文件名称
             const fileName = this.currentFile ? this.currentFile.name.replace('.pdf', '') : '文档';
-            doc.setFontSize(20);
-            doc.setFont('helvetica', 'bold');
-            doc.text(`${fileName} - 审查报告`, margin, yPos, { align: 'center' });
-            yPos += lineHeight * 2.5;
+            const title = document.createElement('h1');
+            title.textContent = `${fileName} - 审查报告`;
+            title.style.textAlign = 'center';
+            title.style.fontSize = '24px';
+            title.style.fontWeight = 'bold';
+            title.style.marginBottom = '20px';
+            title.style.fontFamily = 'SimSun, Arial, sans-serif';
+            tempContainer.appendChild(title);
+            
+            // 计算标题高度并添加到PDF
+            const titleHeight = title.offsetHeight / 3.78; // 转换为mm
+            if (currentY + titleHeight > pageHeight - marginTopBottom) {
+                pdf.addPage();
+                currentY = marginTopBottom;
+                pageNum++;
+            }
+            
+            // 使用html2canvas生成标题图片
+            const titleCanvas = await html2canvas(title, {
+                scale: 1.5,
+                useCORS: true,
+                logging: false,
+                backgroundColor: '#ffffff'
+            });
+            pdf.addImage(titleCanvas.toDataURL('image/jpeg', 0.9), 'JPEG', marginLeftRight, currentY, contentWidth, titleHeight);
+            currentY += titleHeight + 10;
             
             // 添加生成信息
-            doc.setFontSize(10);
-            doc.setFont('helvetica', 'normal');
-            doc.text(`生成时间: ${new Date().toLocaleString('zh-CN')}`, margin, yPos, { align: 'center' });
-            yPos += lineHeight * 2;
+            const infoText = `生成时间: ${new Date().toLocaleString('zh-CN')}`;
+            const infoEl = document.createElement('p');
+            infoEl.textContent = infoText;
+            infoEl.style.textAlign = 'center';
+            infoEl.style.color = '#666';
+            infoEl.style.fontSize = '10px';
+            infoEl.style.fontFamily = 'SimSun, Arial, sans-serif';
+            tempContainer.appendChild(infoEl);
             
-            // 添加分隔线
-            doc.setLineWidth(0.8);
-            doc.line(margin, yPos, pageWidth - margin, yPos);
-            yPos += lineHeight * 2.5;
+            const infoHeight = infoEl.offsetHeight / 3.78;
+            if (currentY + infoHeight > pageHeight - marginTopBottom) {
+                pdf.addPage();
+                currentY = marginTopBottom;
+                pageNum++;
+            }
             
-            // 处理文本格式的辅助函数
-            const processText = (text) => {
-                // 移除HTML标签
-                let plainText = text.replace(/<[^>]*>/g, '');
-                // 处理换行符
-                plainText = plainText.replace(/\n\s*\n/g, '\n'); // 移除多余空行
-                plainText = plainText.replace(/\s+/g, ' '); // 处理多余空格
-                return plainText;
-            };
+            const infoCanvas = await html2canvas(infoEl, {
+                scale: 1.5,
+                useCORS: true,
+                logging: false,
+                backgroundColor: '#ffffff'
+            });
+            pdf.addImage(infoCanvas.toDataURL('image/jpeg', 0.9), 'JPEG', marginLeftRight, currentY, contentWidth, infoHeight);
+            currentY += infoHeight + 15;
             
-            // 处理段落的辅助函数
-            const processParagraphs = (text) => {
-                let paragraphs = text.split(/\n/g);
-                paragraphs = paragraphs.filter(paragraph => paragraph.trim().length > 0);
-                return paragraphs;
-            };
+            // 绘制分隔线
+            pdf.setLineWidth(0.8);
+            pdf.line(marginLeftRight, currentY, pageWidth - marginLeftRight, currentY);
+            currentY += 15;
             
-            // 添加段落的辅助函数
-            const addParagraph = (text, hasIndent = true) => {
-                // 检查是否需要新页面
-                if (yPos > 270) {
-                    doc.addPage();
-                    yPos = 20;
-                }
-                
-                // 设置段落起始位置
-                const startX = hasIndent ? margin + indent : margin;
-                const textWidth = hasIndent ? contentWidth - indent : contentWidth;
-                
-                // 分割文本并添加到PDF
-                const lines = doc.splitTextToSize(text, textWidth);
-                
-                // 添加段落
-                doc.text(lines, startX, yPos);
-                yPos += lines.length * lineHeight + paragraphSpacing;
-            };
-            
-            // 添加章节的辅助函数
-            const addChapter = (title, content) => {
-                // 检查是否需要新页面
-                if (yPos > 260) {
-                    doc.addPage();
-                    yPos = 20;
-                }
-                
+            // 辅助函数：添加章节到PDF
+            const addChapterToPdf = async (chapterTitle, content) => {
                 // 添加章节标题
-                doc.setFontSize(14);
-                doc.setFont('helvetica', 'bold');
-                doc.text(title, margin, yPos);
-                yPos += lineHeight * 2;
+                const chapterTitleEl = document.createElement('h2');
+                chapterTitleEl.textContent = chapterTitle;
+                chapterTitleEl.style.fontSize = '16px';
+                chapterTitleEl.style.fontWeight = 'bold';
+                chapterTitleEl.style.marginBottom = '15px';
+                chapterTitleEl.style.fontFamily = 'SimSun, Arial, sans-serif';
+                tempContainer.appendChild(chapterTitleEl);
                 
-                // 设置正文字体
-                doc.setFontSize(11);
-                doc.setFont('helvetica', 'normal');
+                const chapterTitleHeight = chapterTitleEl.offsetHeight / 3.78;
+                // 检查章节标题是否会超出当前页，添加足够的缓冲
+                if (currentY + chapterTitleHeight + 20 > pageHeight - marginTopBottom) {
+                    pdf.addPage();
+                    currentY = marginTopBottom;
+                    pageNum++;
+                }
                 
-                // 处理内容
-                const processedText = processText(content);
-                const paragraphs = processParagraphs(processedText);
-                
-                // 添加段落
-                paragraphs.forEach((paragraph, index) => {
-                    // 首段缩进，后续段落也缩进
-                    addParagraph(paragraph, true);
+                const chapterTitleCanvas = await html2canvas(chapterTitleEl, {
+                    scale: 1.5,
+                    useCORS: true,
+                    logging: false,
+                    backgroundColor: '#ffffff'
                 });
+                pdf.addImage(chapterTitleCanvas.toDataURL('image/jpeg', 0.9), 'JPEG', marginLeftRight, currentY, contentWidth, chapterTitleHeight);
+                currentY += chapterTitleHeight + 10;
+                
+                // 处理内容，确保所有文本都使用SimSun字体
+                let cleanContent = content;
+                cleanContent = cleanContent.replace(/<[^>]*>/g, ''); // 移除HTML标签
+                const paragraphs = cleanContent.split(/\n+/g); // 按换行符分割段落
+                
+                // 添加每个段落
+                for (const paragraph of paragraphs) {
+                    if (!paragraph.trim()) continue;
+                    
+                    // 创建段落元素并计算高度
+                    const paraEl = document.createElement('p');
+                    paraEl.textContent = paragraph;
+                    paraEl.style.marginBottom = '10px';
+                    paraEl.style.textIndent = '2em'; // 首行缩进2个汉字
+                    paraEl.style.fontFamily = 'SimSun, Arial, sans-serif';
+                    paraEl.style.fontSize = '12px';
+                    paraEl.style.lineHeight = '1.8';
+                    paraEl.style.textAlign = 'justify';
+                    tempContainer.appendChild(paraEl);
+                    
+                    const paraHeight = paraEl.offsetHeight / 3.78;
+                    
+                    // 检查段落是否会超出当前页，添加足够的缓冲
+                    if (currentY + paraHeight > pageHeight - marginTopBottom - 5) {
+                        pdf.addPage();
+                        currentY = marginTopBottom;
+                        pageNum++;
+                    }
+                    
+                    // 生成段落图片并添加到PDF
+                    const paraCanvas = await html2canvas(paraEl, {
+                        scale: 1.5,
+                        useCORS: true,
+                        logging: false,
+                        backgroundColor: '#ffffff'
+                    });
+                    pdf.addImage(paraCanvas.toDataURL('image/jpeg', 0.9), 'JPEG', marginLeftRight, currentY, contentWidth, paraHeight);
+                    currentY += paraHeight + 8;
+                }
             };
             
-            // 添加综合总结
+            // 直接使用AI生成的完整分析报告
             if (this.analysisSession.comprehensiveSummary) {
-                addChapter('一、综合总结', this.analysisSession.comprehensiveSummary);
+                // 不再分章节，直接使用AI生成的完整报告内容
+                const fullReport = this.analysisSession.comprehensiveSummary;
+                
+                // 处理内容，确保所有文本都使用SimSun字体
+                let cleanContent = fullReport;
+                cleanContent = cleanContent.replace(/<[^>]*>/g, ''); // 移除HTML标签
+                const paragraphs = cleanContent.split(/\n+/g); // 按换行符分割段落
+                
+                // 添加每个段落
+                for (const paragraph of paragraphs) {
+                    if (!paragraph.trim()) continue;
+                    
+                    // 创建段落元素并计算高度
+                    const paraEl = document.createElement('p');
+                    paraEl.textContent = paragraph;
+                    paraEl.style.marginBottom = '10px';
+                    paraEl.style.fontFamily = 'SimSun, Arial, sans-serif';
+                    paraEl.style.fontSize = '12px';
+                    paraEl.style.lineHeight = '1.8';
+                    paraEl.style.textAlign = 'justify';
+                    tempContainer.appendChild(paraEl);
+                    
+                    const paraHeight = paraEl.offsetHeight / 3.78;
+                    
+                    // 检查段落是否会超出当前页，添加足够的缓冲
+                    if (currentY + paraHeight > pageHeight - marginTopBottom - 5) {
+                        pdf.addPage();
+                        currentY = marginTopBottom;
+                        pageNum++;
+                    }
+                    
+                    // 生成段落图片并添加到PDF
+                    const paraCanvas = await html2canvas(paraEl, {
+                        scale: 1.5,
+                        useCORS: true,
+                        logging: false,
+                        backgroundColor: '#ffffff'
+                    });
+                    pdf.addImage(paraCanvas.toDataURL('image/jpeg', 0.9), 'JPEG', marginLeftRight, currentY, contentWidth, paraHeight);
+                    currentY += paraHeight + 8;
+                }
             }
             
-            // 添加文档结构分析
-            if (this.analysisSession.structure) {
-                addChapter('二、文档结构分析', this.analysisSession.structure.analysis);
+            // 添加附件：各阶段详细分析结果
+            currentY += 20;
+            
+            // 检查是否需要新页面
+            if (currentY > pageHeight - marginTopBottom - 50) {
+                pdf.addPage();
+                currentY = marginTopBottom;
+                pageNum++;
             }
             
-            // 添加设计缺陷检查
-            if (this.analysisSession.design) {
-                addChapter('三、设计缺陷检查', this.analysisSession.design.analysis);
+            // 添加附件标题
+            const attachmentTitle = document.createElement('h2');
+            attachmentTitle.textContent = '附件：各阶段详细分析结果';
+            attachmentTitle.style.fontSize = '16px';
+            attachmentTitle.style.fontWeight = 'bold';
+            attachmentTitle.style.marginBottom = '15px';
+            attachmentTitle.style.fontFamily = 'SimSun, Arial, sans-serif';
+            tempContainer.appendChild(attachmentTitle);
+            
+            const attachmentTitleHeight = attachmentTitle.offsetHeight / 3.78;
+            const attachmentTitleCanvas = await html2canvas(attachmentTitle, {
+                scale: 1.5,
+                useCORS: true,
+                logging: false,
+                backgroundColor: '#ffffff'
+            });
+            pdf.addImage(attachmentTitleCanvas.toDataURL('image/jpeg', 0.9), 'JPEG', marginLeftRight, currentY, contentWidth, attachmentTitleHeight);
+            currentY += attachmentTitleHeight + 15;
+            
+            // 定义阶段名称映射
+            const stageNames = {
+                structure: '文档结构分析',
+                design: '设计缺陷检查',
+                logic: '逻辑一致性分析',
+                risk: '风险评估'
+            };
+            
+            // 为每个阶段添加详细分析结果
+            for (const [stage, stageName] of Object.entries(stageNames)) {
+                if (this.analysisSession[stage]) {
+                    // 检查是否需要新页面
+                    if (currentY > pageHeight - marginTopBottom - 100) {
+                        pdf.addPage();
+                        currentY = marginTopBottom;
+                        pageNum++;
+                    }
+                    
+                    // 添加阶段标题
+                    const stageTitle = document.createElement('h3');
+                    stageTitle.textContent = stageName;
+                    stageTitle.style.fontSize = '14px';
+                    stageTitle.style.fontWeight = 'bold';
+                    stageTitle.style.marginBottom = '10px';
+                    stageTitle.style.fontFamily = 'SimSun, Arial, sans-serif';
+                    tempContainer.appendChild(stageTitle);
+                    
+                    const stageTitleHeight = stageTitle.offsetHeight / 3.78;
+                    const stageTitleCanvas = await html2canvas(stageTitle, {
+                        scale: 1.5,
+                        useCORS: true,
+                        logging: false,
+                        backgroundColor: '#ffffff'
+                    });
+                    pdf.addImage(stageTitleCanvas.toDataURL('image/jpeg', 0.9), 'JPEG', marginLeftRight, currentY, contentWidth, stageTitleHeight);
+                    currentY += stageTitleHeight + 10;
+                    
+                    // 获取阶段分析结果
+                    const stageResult = this.analysisSession[stage].analysis;
+                    
+                    // 处理内容，确保所有文本都使用SimSun字体
+                    let cleanStageResult = stageResult;
+                    cleanStageResult = cleanStageResult.replace(/<[^>]*>/g, ''); // 移除HTML标签
+                    const stageParagraphs = cleanStageResult.split(/\n+/g); // 按换行符分割段落
+                    
+                    // 添加每个段落
+                    for (const paragraph of stageParagraphs) {
+                        if (!paragraph.trim()) continue;
+                        
+                        // 创建段落元素并计算高度
+                        const paraEl = document.createElement('p');
+                        paraEl.textContent = paragraph;
+                        paraEl.style.marginBottom = '10px';
+                        paraEl.style.fontFamily = 'SimSun, Arial, sans-serif';
+                        paraEl.style.fontSize = '11px'; // 附件内容使用稍小字体
+                        paraEl.style.lineHeight = '1.8';
+                        paraEl.style.textAlign = 'justify';
+                        tempContainer.appendChild(paraEl);
+                        
+                        const paraHeight = paraEl.offsetHeight / 3.78;
+                        
+                        // 检查段落是否会超出当前页，添加足够的缓冲
+                        if (currentY + paraHeight > pageHeight - marginTopBottom - 5) {
+                            pdf.addPage();
+                            currentY = marginTopBottom;
+                            pageNum++;
+                        }
+                        
+                        // 生成段落图片并添加到PDF
+                        const paraCanvas = await html2canvas(paraEl, {
+                            scale: 1.5,
+                            useCORS: true,
+                            logging: false,
+                            backgroundColor: '#ffffff'
+                        });
+                        pdf.addImage(paraCanvas.toDataURL('image/jpeg', 0.9), 'JPEG', marginLeftRight, currentY, contentWidth, paraHeight);
+                        currentY += paraHeight + 8;
+                    }
+                    
+                    // 阶段之间添加分隔
+                    currentY += 20;
+                }
             }
             
-            // 添加逻辑一致性分析
-            if (this.analysisSession.logic) {
-                addChapter('四、逻辑一致性分析', this.analysisSession.logic.analysis);
-            }
+            // 使用报告名称作为PDF文件名
+            const pdfFileName = `${fileName.replace(/\s+/g, '-')}-审查报告.pdf`;
+            pdf.save(pdfFileName);
             
-            // 添加风险评估
-            if (this.analysisSession.risk) {
-                addChapter('五、风险评估', this.analysisSession.risk.analysis);
-            }
-            
-            // 保存PDF
-            doc.save('analysis-report.pdf');
+            // 清理临时元素
+            document.body.removeChild(tempContainer);
             
             this.showSuccess('PDF报告生成成功！');
         } catch (error) {
             console.error('生成PDF失败:', error);
             this.showError('生成PDF失败，请重试');
+            // 确保临时元素被清理
+            const tempContainers = document.querySelectorAll('div[style*="left: -9999px"]');
+            tempContainers.forEach(container => container.remove());
         }
     }
 

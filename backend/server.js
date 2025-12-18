@@ -7,6 +7,17 @@ require('dotenv').config();
 const aiService = require('./services/aiService');
 const documentProcessor = require('./services/documentProcessor');
 
+// 获取阶段名称的辅助函数
+function getStageName(stage) {
+  const stageNames = {
+    structure: '文档结构分析',
+    design: '设计缺陷检查',
+    logic: '逻辑一致性分析',
+    risk: '风险评估'
+  };
+  return stageNames[stage] || stage;
+}
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 
@@ -23,7 +34,7 @@ const limiter = rateLimit({
 
 app.use(limiter);
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:8080',
+  origin: '*', // 允许所有来源，解决跨域问题
   credentials: true
 }));
 app.use(express.json({ limit: '50mb' }));
@@ -178,13 +189,17 @@ app.post('/api/analyze', async (req, res) => {
             }
         }
         
-        // 生成综合总结
+        // 生成综合总结，传入日志回调
         const comprehensiveSummary = await documentProcessor.generateComprehensiveSummary(
             session.analysisResults,
             provider,
             apiKey,
             customApiUrl,
-            customModel
+            customModel,
+            (logData) => {
+                // 将日志数据通过SSE发送到前端
+                sendStreamData({ stage: 'log', logData });
+            }
         );
         
         // 更新总token使用量，包括总结生成的token
@@ -211,12 +226,15 @@ app.post('/api/analyze', async (req, res) => {
 
   } catch (error) {
     console.error('分析错误:', error);
-    res.status(500).json({
+    
+    // 使用SSE格式发送错误响应，而不是JSON
+    res.write(`data: ${JSON.stringify({
       success: false,
       message: '分析过程中发生错误',
       error: error.message,
       timestamp: new Date().toISOString()
-    });
+    })}\n\n`);
+    res.end();
   }
 });
 
@@ -320,14 +338,18 @@ app.post('/api/analyze/continue', async (req, res) => {
         }
     }
     
-    // 生成综合总结
-    const comprehensiveSummary = await documentProcessor.generateComprehensiveSummary(
-        session.analysisResults,
-        provider || session.provider,
-        apiKey || session.apiKey,
-        customApiUrl || session.customApiUrl,
-        customModel || session.customModel
-    );
+    // 生成综合总结，传入日志回调
+        const comprehensiveSummary = await documentProcessor.generateComprehensiveSummary(
+            session.analysisResults,
+            provider || session.provider,
+            apiKey || session.apiKey,
+            customApiUrl || session.customApiUrl,
+            customModel || session.customModel,
+            (logData) => {
+                // 将日志数据通过SSE发送到前端
+                sendStreamData({ stage: 'log', logData });
+            }
+        );
     
     // 更新总token使用量，包括总结生成的token
     if (comprehensiveSummary.tokenUsage) {
@@ -353,24 +375,17 @@ app.post('/api/analyze/continue', async (req, res) => {
 
   } catch (error) {
     console.error('继续分析错误:', error);
-    res.status(500).json({
+    
+    // 使用SSE格式发送错误响应，而不是JSON
+    res.write(`data: ${JSON.stringify({
       success: false,
       message: '继续分析过程中发生错误',
       error: error.message,
       timestamp: new Date().toISOString()
-    });
+    })}\n\n`);
+    res.end();
   }
 });
-
-function getStageName(stage) {
-  const stageNames = {
-    structure: '文档结构分析',
-    design: '设计缺陷检查',
-    logic: '逻辑一致性分析',
-    risk: '风险评估'
-  };
-  return stageNames[stage] || stage;
-}
 
 app.get('/api/health', (req, res) => {
   res.json({
