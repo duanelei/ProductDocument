@@ -1,239 +1,178 @@
 # AI产品文档审查系统
 
-基于人工智能的智能文档质量分析工具，专门用于自动化分析和评估产品文档的质量。
+基于人工智能的智能文档质量分析工具，支持多维度审查和实时反馈。
 
-## 功能特性
+## 🌟 功能特性
 
-### 核心功能模块
-- **文档结构分析**：自动解析PDF文档的章节结构
-- **设计缺陷检查**：识别UI/UX设计问题和交互逻辑缺陷
-- **逻辑一致性分析**：检查文档内容的逻辑矛盾和一致性
-- **风险评估**：评估技术实现风险和业务影响风险
+- **📄 多格式文档支持**：支持PDF格式产品文档上传
+- **🤖 多AI模型集成**：支持OpenAI GPT-4o-mini、DeepSeek、自定义API
+- **📊 多维度分析**：
+  - 文档结构分析
+  - 设计缺陷检查
+  - 逻辑一致性分析
+  - 风险评估
+  - 综合总结生成
+- **⚡ 实时分析进度**：流式输出，实时显示分析进展
+- **📈 Token使用统计**：实时显示token消耗和费用
+- **📑 标签页结果展示**：可切换查看各阶段分析结果
+- **📤 结果导出**：支持JSON和PDF格式导出
+- **🌐 跨平台支持**：Windows一键启动脚本，Docker部署支持
 
-### 特色功能
-- **智能暂停恢复机制**：分阶段分析，用户可控制分析流程
-- **多AI提供商支持**：OpenAI、DeepSeek、自定义API服务
-- **实时流式响应**：Server-Sent Events (SSE) 实时进度显示
-- **现代化用户界面**：响应式设计，直观的操作体验
+## 🛠 技术架构
 
-## 技术架构
+- **前端**：HTML5 + JavaScript + CSS3
+- **后端**：Node.js + Express
+- **AI集成**：OpenAI API、DeepSeek API
+- **文档处理**：pdf-parse
+- **PDF生成**：jsPDF + html2canvas（支持中文编码）
+- **实时通信**：Server-Sent Events (SSE)
+- **部署方式**：Windows批处理脚本 / Docker
 
-### 前端技术栈
-- HTML5 + CSS3 + 原生JavaScript
-- PDF.js (PDF解析)
-- Fetch API (HTTP请求)
-- EventSource (SSE流式接收)
+## 📦 安装和启动
 
-### 后端技术栈
-- Node.js + Express.js
-- Multer (文件上传)
-- PDF-parse (PDF解析)
-- Axios (HTTP客户端)
+### Windows系统
 
-### AI服务集成
-- OpenAI GPT-4o-mini
-- DeepSeek API
-- 自定义API服务支持
+1. **环境要求**：
+   - Node.js ≥ 16.0.0
+   - Python ≥ 3.0
 
-## 快速开始
+2. **一键启动**：
+   ```bash
+   start-system.bat
+   ```
 
-### 环境要求
-- Node.js >= 16.0.0
-- 现代浏览器支持
-- 可访问外部AI服务API
+3. **访问系统**：
+   - 前端UI：http://localhost:8080
+   - 后端API：http://localhost:3001
+   - 健康检查：http://localhost:3001/api/health
 
-### 安装依赖
-```bash
-# 安装根目录依赖
-npm install
+### Docker部署
 
-# 安装后端依赖
-cd backend && npm install
+1. **构建和启动**：
+   ```bash
+   docker-compose up -d
+   ```
+
+2. **访问系统**：
+   - 前端UI：http://localhost
+   - 后端API：http://localhost:3001
+
+## 🚀 使用指南
+
+1. **配置AI服务**：
+   - 选择AI服务提供商（OpenAI/DeepSeek/自定义）
+   - 输入API密钥
+   - 点击「测试连接」验证配置
+
+2. **上传文档**：
+   - 点击上传区域或拖拽PDF文件
+   - 等待文件上传完成
+
+3. **开始分析**：
+   - 点击「开始分析」按钮
+   - 查看实时分析进度和输出
+
+4. **查看结果**：
+   - 点击阶段标签切换查看不同维度的分析结果
+   - 查看综合总结
+
+5. **导出结果**：
+   - 选择「导出JSON」或「导出PDF」
+   - 保存分析结果
+
+## 📁 项目结构
+
+```
+ProductDocument/
+├── backend/                  # 后端服务
+│   ├── controllers/          # API控制器
+│   ├── services/             # 业务逻辑服务
+│   │   ├── aiService.js      # AI服务集成
+│   │   ├── documentProcessor.js  # 文档处理服务
+│   │   └── tokenCounter.js   # Token统计服务
+│   ├── routes/               # API路由
+│   ├── middleware/           # 中间件
+│   ├── server.js             # 后端入口
+│   └── package.json          # 后端依赖
+├── frontend/                 # 前端代码
+│   ├── index.html            # 主页面
+│   ├── script.js             # 核心逻辑
+│   └── styles.css            # 样式文件
+├── logs/                     # 日志目录
+├── docker-compose.yml        # Docker Compose配置
+├── Dockerfile.backend        # 后端Dockerfile
+├── nginx.conf                # Nginx配置
+├── start-system.bat          # Windows启动脚本
+└── README.md                 # 项目说明
 ```
 
-### 开发环境运行
-```bash
-# 同时启动前端和后端
-npm run dev
-
-# 或者分别启动
-npm run dev:backend  # 后端服务 (端口3001)
-npm run dev:frontend # 前端服务 (端口8080)
-```
-
-### 生产环境部署
-```bash
-# PM2进程管理
-npm run pm2:start
-
-# Docker容器化
-npm run docker:build
-npm run docker:run
-
-# 腾讯云部署
-npm run deploy
-```
-
-## 配置说明
-
-### 环境变量 (.env)
-```bash
-PORT=3001
-FRONTEND_URL=http://localhost:8080
-RATE_LIMIT_WINDOW_MS=900000
-RATE_LIMIT_MAX_REQUESTS=100
-DEFAULT_AI_PROVIDER=openai
-DEFAULT_MODEL=gpt-4o-mini
-```
+## 🔧 配置说明
 
 ### AI服务配置
-1. **OpenAI配置**
-   - 提供商: `openai`
-   - API密钥: 从OpenAI平台获取
-   - 默认模型: `gpt-4o-mini`
 
-2. **DeepSeek配置**
-   - 提供商: `deepseek`
-   - API密钥: 从DeepSeek平台获取
-   - 默认模型: `deepseek-chat`
+| 提供商 | API密钥 | 模型 | 费用 |
+|--------|---------|------|------|
+| OpenAI | sk-xxx  | gpt-4o-mini | 约¥0.00000105/token |
+| DeepSeek | xxx | deepseek-chat | 见DeepSeek定价 |
+| 自定义 | xxx | 自定义模型 | 自定义 |
 
-3. **自定义API配置**
-   - 提供商: `custom`
-   - API地址: 自定义端点URL
-   - 模型名称: 自定义模型标识
+### 环境变量
 
-## 使用指南
-
-### 基本使用流程
-1. **配置API密钥**
-   - 选择AI服务提供商
-   - 输入有效的API密钥
-   - 保存配置
-
-2. **上传文档分析**
-   - 选择PDF文档文件
-   - 点击"开始分析"按钮
-   - 等待文档结构分析完成
-
-3. **继续后续分析**
-   - 结构分析完成后弹窗关闭
-   - 页面显示"继续分析"按钮
-   - 点击继续执行设计、逻辑、风险分析
-
-4. **查看分析结果**
-   - 实时查看各阶段分析进度
-   - 查看详细的分析报告
-   - 导出JSON格式结果
-
-### API接口
-
-#### POST `/api/analyze` - 初始分析
-```javascript
-// 请求格式
-{
-  fileContent: string,           // 文件文本内容
-  provider: string,             // AI提供商
-  apiKey: string,              // API密钥
-  customApiUrl?: string,       // 自定义API地址
-  customModel?: string         // 自定义模型
-}
-
-// 响应格式 (流式)
-data: { stage: 'structure', message: '开始文档结构分析...' }
-data: { stage: 'structure', chunk: '分析内容片段...' }
-data: { stage: 'paused', fileId: 'xxx', structureAnalysis: {...} }
-```
-
-#### POST `/api/analyze/continue` - 继续分析
-```javascript
-// 请求格式
-{
-  fileId: string,              // 文件标识
-  provider: string,            // AI提供商
-  apiKey: string,             // API密钥
-  customApiUrl?: string,      // 自定义API地址
-  customModel?: string        // 自定义模型
-}
-
-// 响应格式 (分阶段流式)
-data: { stage: 'design', message: '开始设计缺陷检查...' }
-data: { stage: 'logic', message: '开始逻辑一致性分析...' }
-data: { stage: 'risk', message: '开始风险评估...' }
-data: { stage: 'complete', data: { /* 完整结果 */ } }
-```
-
-## 故障排除
-
-### 常见问题
-
-#### 文件上传失败
-- 检查文件格式是否为PDF
-- 确认文件大小不超过10MB限制
-- 验证网络连接状态
-
-#### 分析过程中断
-- 检查API密钥有效性
-- 确认AI服务配额充足
-- 查看服务器日志排查问题
-
-#### 结果显示异常
-- 刷新页面重新分析
-- 检查浏览器控制台错误信息
-- 验证PDF文档可读性
-
-### 性能优化建议
-- **大文件处理**：分段上传和流式处理
-- **并发控制**：合理的请求频率限制
-- **缓存策略**：分析结果缓存复用
-
-## 项目结构
+在`.env`文件中配置：
 
 ```
-ai-document-review-system/
-├── backend/                 # 后端服务
-│   ├── services/           # 核心服务模块
-│   │   ├── aiService.js    # AI服务集成
-│   │   └── documentProcessor.js # 文档处理器
-│   ├── server.js           # Express服务器
-│   └── package.json        # 后端依赖配置
-├── frontend/               # 前端界面
-│   ├── index.html          # 主页面
-│   ├── styles.css          # 样式文件
-│   └── script.js           # 交互逻辑
-├── .env                    # 环境配置
-├── package.json            # 项目配置
-└── README.md              # 项目文档
+PORT=3001
+NODE_ENV=development
 ```
 
-## 开发指南
+## 📝 系统流程
 
-### 代码规范
-- 使用ES6+语法特性
-- 遵循Airbnb JavaScript代码风格
-- 使用async/await处理异步操作
-- 统一的错误处理机制
+1. **文档上传**：用户上传PDF文件
+2. **文本提取**：后端解析PDF，提取文本内容
+3. **阶段化分析**：
+   - 文档结构分析
+   - 设计缺陷检查
+   - 逻辑一致性分析
+   - 风险评估
+4. **综合总结**：生成完整的分析报告
+5. **结果展示**：前端显示各阶段分析结果
+6. **结果导出**：支持JSON和PDF格式导出
 
-### 扩展开发
-1. **添加新的分析维度**
-   - 在`documentProcessor.js`中添加新的分析方法
-   - 更新前端界面显示新的分析结果
-   - 修改API接口支持新的分析阶段
+## 🌟 技术亮点
 
-2. **集成新的AI服务**
-   - 在`aiService.js`中添加新的提供商支持
-   - 更新前端配置选项
-   - 测试新的API集成
+1. **中文PDF支持**：使用html2canvas解决中文乱码问题
+2. **实时流式输出**：使用SSE实现实时分析进度更新
+3. **阶段化进度展示**：每个阶段完成后自动更新状态
+4. **准确Token统计**：实时显示token使用量和费用
+5. **多种AI服务支持**：可切换不同AI服务提供商
+6. **一键部署**：Windows脚本和Docker支持
 
-## 许可证
+## 🤝 贡献
+
+欢迎提交Issue和Pull Request！
+
+## 📄 许可证
 
 MIT License
 
-## 贡献
-
-欢迎提交Issue和Pull Request来改进这个项目。
-
-## 联系方式
+## 📞 联系方式
 
 如有问题或建议，请通过以下方式联系：
-- 项目Issue: [GitHub Issues]
-- 邮箱: team@ai-document-review.com
+
+- 项目地址：https://github.com/your-repo/ai-document-review-system
+- 邮箱：your-email@example.com
+
+## 更新日志
+
+### v1.0.0
+- 初始版本发布
+- 支持PDF文档多维度分析
+- 支持实时分析进度展示
+- 支持多种AI服务提供商
+- 支持结果导出（JSON/PDF）
+- 提供Windows启动脚本
+- 支持Docker部署
+
+---
+
+**AI产品文档审查系统** - 让文档审查更智能、更高效！

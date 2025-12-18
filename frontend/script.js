@@ -137,7 +137,7 @@ class DocumentReviewSystem {
         testBtn.disabled = true;
 
         try {
-            const response = await fetch('http://localhost:3001/api/health');
+            const response = await fetch('/api/health');
             if (!response.ok) {
                 throw new Error('后端服务不可用');
             }
@@ -214,7 +214,7 @@ class DocumentReviewSystem {
             const base64Content = this.arrayBufferToBase64(this.currentFileArrayBuffer);
             
             // 发送分析请求并处理流式响应
-            const response = await fetch('http://localhost:3001/api/analyze', {
+            const response = await fetch('/api/analyze', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -288,7 +288,7 @@ class DocumentReviewSystem {
 
         try {
             // 发送继续分析请求并处理流式响应
-            const response = await fetch('http://localhost:3001/api/analyze/continue', {
+            const response = await fetch('/api/analyze/continue', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
