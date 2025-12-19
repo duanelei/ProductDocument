@@ -16,7 +16,7 @@ class DocumentProcessor {
 注意：直接输出分析结果，不要添加任何开场白或介绍性文字。`,
         userPrompt: (content) => `请分析以下文档的结构：
 
-${content.substring(0, 8000)}`
+${content.substring(0, 50000)}`
       },
       design: {
         systemPrompt: `你是一个专业的UI/UX设计专家。请直接分析以下产品文档中的设计缺陷，包括界面设计、用户体验和交互逻辑问题，不要包含任何引导性语句。
@@ -31,7 +31,7 @@ ${content.substring(0, 8000)}`
 注意：直接输出分析结果，不要添加任何开场白或介绍性文字。`,
         userPrompt: (content) => `请分析以下文档中的设计缺陷：
 
-${content.substring(0, 8000)}`
+${content.substring(0, 50000)}`
       },
       logic: {
         systemPrompt: `你是一个专业的逻辑分析专家。请直接检查以下产品文档内容的逻辑一致性和合理性，不要包含任何引导性语句。
@@ -46,7 +46,7 @@ ${content.substring(0, 8000)}`
 注意：直接输出分析结果，不要添加任何开场白或介绍性文字。`,
         userPrompt: (content) => `请分析以下文档的逻辑一致性：
 
-${content.substring(0, 8000)}`
+${content.substring(0, 50000)}`
       },
       risk: {
         systemPrompt: `你是一个专业的风险评估专家。请直接评估以下产品文档中描述的技术实现风险和业务影响风险，不要包含任何引导性语句。
@@ -61,7 +61,7 @@ ${content.substring(0, 8000)}`
 注意：直接输出分析结果，不要添加任何开场白或介绍性文字。`,
         userPrompt: (content) => `请评估以下文档中的风险：
 
-${content.substring(0, 8000)}`
+${content.substring(0, 50000)}`
       }
     };
   }

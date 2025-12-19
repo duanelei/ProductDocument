@@ -55,7 +55,7 @@ app.post('/api/analyze', async (req, res) => {
       });
     }
 
-    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
 
@@ -107,71 +107,54 @@ app.post('/api/analyze', async (req, res) => {
     };
 
     sendStreamData({ stage: 'structure', message: '开始文档结构分析...' });
+    sendStreamData({ stage: 'design', message: '开始设计缺陷检查...' });
+    sendStreamData({ stage: 'logic', message: '开始逻辑一致性分析...' });
+    sendStreamData({ stage: 'risk', message: '开始风险评估...' });
 
-    const structureAnalysis = await documentProcessor.analyzeDocumentStructure(
-            parsedText, // 使用解析后的文本进行分析
-            provider,
-            apiKey,
-            customApiUrl,
-            customModel,
-            sendStreamData
+    // 并行执行所有分析阶段
+    const analysisPromises = [];
+    const stages = ['structure', 'design', 'logic', 'risk'];
+
+    stages.forEach(stage => {
+      const promise = (async () => {
+        const method = stage === 'structure' 
+          ? 'analyzeDocumentStructure' 
+          : `analyze${stage.charAt(0).toUpperCase() + stage.slice(1)}`;
+          
+        const analysisResult = await documentProcessor[method](
+          parsedText,
+          provider,
+          apiKey,
+          customApiUrl,
+          customModel,
+          sendStreamData
         );
 
-        session.analysisResults.structure = structureAnalysis;
-        session.completedStages.push('structure');
-        session.currentStage = 'structure';
+        session.analysisResults[stage] = analysisResult;
+        session.completedStages.push(stage);
         
         // 包含token使用数据
         const responseData = { 
-            stage: 'structure', 
-            message: '文档结构分析完成',
-            structureAnalysis 
+            stage, 
+            message: `${getStageName(stage)}完成`,
+            analysisResult 
         };
         
         // 如果有token使用数据，添加到响应中
-        if (structureAnalysis.tokenUsage) {
-            responseData.tokenUsage = structureAnalysis.tokenUsage;
+        if (analysisResult.tokenUsage) {
+            responseData.tokenUsage = analysisResult.tokenUsage;
         }
         
         sendStreamData(responseData);
+      })();
+      analysisPromises.push(promise);
+    });
 
-        // 自动执行剩余阶段
-        const stages = ['design', 'logic', 'risk'];
-        
-        for (const stage of stages) {
-            // 执行当前阶段
-            sendStreamData({ stage, message: `开始${getStageName(stage)}...` });
-            
-            const analysisResult = await documentProcessor[`analyze${stage.charAt(0).toUpperCase() + stage.slice(1)}`](
-                parsedText,
-                provider,
-                apiKey,
-                customApiUrl,
-                customModel,
-                sendStreamData
-            );
-
-            session.analysisResults[stage] = analysisResult;
-            session.completedStages.push(stage);
-            session.currentStage = stage;
-
-            // 包含token使用数据
-            const stageResponseData = { 
-                stage, 
-                message: `${getStageName(stage)}完成`,
-                analysisResult 
-            };
-            
-            // 如果有token使用数据，添加到响应中
-            if (analysisResult.tokenUsage) {
-                stageResponseData.tokenUsage = analysisResult.tokenUsage;
-            }
-            
-            sendStreamData(stageResponseData);
-        }
-
-        // 所有阶段都已完成
-        session.currentStage = 'complete';
+    // 等待所有分析完成
+    await Promise.all(analysisPromises);
+    
+    // 所有阶段都已完成
+    session.currentStage = 'complete';
         
         // 计算总token使用量
         let totalTokenUsage = {
@@ -261,7 +244,7 @@ app.post('/api/analyze/continue', async (req, res) => {
       });
     }
 
-    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
 
@@ -283,9 +266,8 @@ app.post('/api/analyze/continue', async (req, res) => {
 
     const stages = ['design', 'logic', 'risk'];
     
-    // 执行所有未完成的阶段
-    let allCompleted = true;
-    for (const stage of stages) {
+    // 并行执行所有未完成的阶段
+    await Promise.all(stages.map(async (stage) => {
         if (!session.completedStages.includes(stage)) {
             // 执行当前阶段
             sendStreamData({ stage, message: `开始${getStageName(stage)}...` });
@@ -301,7 +283,6 @@ app.post('/api/analyze/continue', async (req, res) => {
 
             session.analysisResults[stage] = analysisResult;
             session.completedStages.push(stage);
-            session.currentStage = stage;
 
             // 包含token使用数据
             const responseData = { 
@@ -317,7 +298,7 @@ app.post('/api/analyze/continue', async (req, res) => {
             
             sendStreamData(responseData);
         }
-    }
+    }));
 
     // 所有阶段都已完成
     session.currentStage = 'complete';

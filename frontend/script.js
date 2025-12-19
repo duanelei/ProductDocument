@@ -4,10 +4,14 @@ class DocumentReviewSystem {
         this.currentFileId = null;
         this.analysisSession = null;
         this.isAnalyzing = false;
+        this.completedStagesCount = 0;
         this.eventSource = null;
         this.tokenCount = 0;
         this.tokenCost = 0;
-        this.tokenRate = 0.00000105; // 正确的每token费用：¥0.00000105 (GPT-4o-mini，按1美元=7人民币计算)
+        this.apiBaseUrl = 'http://localhost:3001';
+        // GPT-4o-mini 价格: 输入 $0.15/1M, 输出 $0.60/1M (1 USD = 7 CNY)
+        this.inputTokenRate = 0.00000105; 
+        this.outputTokenRate = 0.0000042;
         
         this.initializeEventListeners();
         this.loadConfigFromStorage();
@@ -214,7 +218,7 @@ class DocumentReviewSystem {
             const base64Content = this.arrayBufferToBase64(this.currentFileArrayBuffer);
             
             // 发送分析请求并处理流式响应
-            const response = await fetch('/api/analyze', {
+            const response = await fetch(`${this.apiBaseUrl}/api/analyze`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -384,17 +388,20 @@ class DocumentReviewSystem {
         switch (data.stage) {
             case 'structure':
                 // 如果有analysisResult，说明结构分析已完成
-                if (data.structureAnalysis) {
+                // 兼容旧字段structureAnalysis或新字段analysisResult
+                const structureResult = data.structureAnalysis || data.analysisResult;
+                if (structureResult) {
                     this.updateStageProgress('structure', '已完成');
                     this.analysisSession = this.analysisSession || {};
-                    this.analysisSession.structure = data.structureAnalysis;
-                    this.updateResultContent('structure', data.structureAnalysis);
+                    this.analysisSession.structure = structureResult;
+                    this.updateResultContent('structure', structureResult);
                     document.getElementById('analysisSection').style.display = 'block';
+                    this.completedStagesCount++;
                 } else {
                     // 否则是正在进行中
                     this.updateStageProgress('structure', '进行中');
                 }
-                this.appendToOutput(data.chunk || data.message);
+                this.appendToOutput(data.chunk || data.message, data.stage);
                 break;
                 
             case 'paused':
@@ -410,11 +417,12 @@ class DocumentReviewSystem {
                     this.analysisSession.design = data.analysisResult;
                     this.updateResultContent('design', data.analysisResult);
                     document.getElementById('analysisSection').style.display = 'block';
+                    this.completedStagesCount++;
                 } else {
                     // 否则是正在进行中
                     this.updateStageProgress('design', '进行中');
                 }
-                this.appendToOutput(data.chunk || data.message);
+                this.appendToOutput(data.chunk || data.message, data.stage);
                 break;
                 
             case 'logic':
@@ -425,11 +433,12 @@ class DocumentReviewSystem {
                     this.analysisSession.logic = data.analysisResult;
                     this.updateResultContent('logic', data.analysisResult);
                     document.getElementById('analysisSection').style.display = 'block';
+                    this.completedStagesCount++;
                 } else {
                     // 否则是正在进行中
                     this.updateStageProgress('logic', '进行中');
                 }
-                this.appendToOutput(data.chunk || data.message);
+                this.appendToOutput(data.chunk || data.message, data.stage);
                 break;
                 
             case 'risk':
@@ -440,11 +449,12 @@ class DocumentReviewSystem {
                     this.analysisSession.risk = data.analysisResult;
                     this.updateResultContent('risk', data.analysisResult);
                     document.getElementById('analysisSection').style.display = 'block';
+                    this.completedStagesCount++;
                 } else {
                     // 否则是正在进行中
                     this.updateStageProgress('risk', '进行中');
                 }
-                this.appendToOutput(data.chunk || data.message);
+                this.appendToOutput(data.chunk || data.message, data.stage);
                 break;
                 
 
@@ -476,30 +486,31 @@ class DocumentReviewSystem {
     updateProgressBar(stage) {
         let progress = 0;
         
-        // 根据当前阶段设置正确的进度百分比
-        switch(stage) {
-            case 'structure':
-                progress = 0;
-                break;
-            case 'design':
-                progress = 25;
-                break;
-            case 'logic':
-                progress = 50;
-                break;
-            case 'risk':
-                progress = 75;
-                break;
-            case 'complete':
-                progress = 100;
-                break;
-            default:
-                progress = 0;
+        if (stage === 'complete') {
+            progress = 100;
+        } else {
+            // 基于已完成的阶段数计算进度
+            // 总共4个阶段: structure, design, logic, risk
+            // 综合总结算最后一步
+            const totalStages = 4;
+            // 基础进度：每个完成的阶段贡献 25%
+            let baseProgress = (this.completedStagesCount / totalStages) * 100;
+            
+            // 加上一点"进行中"的进度，让用户感觉到在动
+            // 假设每个阶段都在动，最多加 5%
+            progress = Math.min(95, baseProgress + 5);
         }
         
         document.getElementById('progressFill').style.width = `${progress}%`;
-        document.getElementById('progressText').textContent = 
-            `分析进度: ${Math.round(progress)}% - ${this.getStageName(stage)}`;
+        
+        let progressText = `分析进度: ${Math.round(progress)}%`;
+        if (stage !== 'complete') {
+            progressText += ' - 正在并行分析...';
+        } else {
+            progressText += ' - 分析完成';
+        }
+        
+        document.getElementById('progressText').textContent = progressText;
     }
 
     getStageName(stage) {
@@ -529,9 +540,37 @@ class DocumentReviewSystem {
         }
     }
 
-    appendToOutput(content) {
+    appendToOutput(content, stage) {
         const outputContent = document.getElementById('outputContent');
-        outputContent.textContent += content;
+        
+        // 如果是特定阶段的内容，添加到该阶段的流式容器中
+        if (stage && ['structure', 'design', 'logic', 'risk', 'summary'].includes(stage)) {
+            const streamContainer = document.getElementById(`stream${stage.charAt(0).toUpperCase() + stage.slice(1)}`);
+            if (streamContainer) {
+                streamContainer.style.display = 'block';
+                streamContainer.textContent += content;
+                streamContainer.scrollTop = streamContainer.scrollHeight;
+                
+                // 如果成功添加到特定容器，就不添加到总输出容器了，避免并行分析时的乱序干扰
+                return;
+            }
+        }
+        
+        if (stage) {
+            let stageContainer = document.getElementById(`output-stage-${stage}`);
+            if (!stageContainer) {
+                stageContainer = document.createElement('div');
+                stageContainer.id = `output-stage-${stage}`;
+                stageContainer.className = 'stage-output';
+                stageContainer.style.marginBottom = '10px';
+                stageContainer.innerHTML = `<strong>[${this.getStageName(stage)}]</strong><br>`;
+                outputContent.appendChild(stageContainer);
+            }
+            stageContainer.innerHTML += content;
+        } else {
+            outputContent.innerHTML += content;
+        }
+        
         outputContent.scrollTop = outputContent.scrollHeight;
     }
 
@@ -613,8 +652,15 @@ class DocumentReviewSystem {
         if (!result) return;
         
         const resultElement = document.getElementById(`result${stage.charAt(0).toUpperCase() + stage.slice(1)}`);
+        const streamElement = document.getElementById(`stream${stage.charAt(0).toUpperCase() + stage.slice(1)}`);
+        
         if (resultElement) {
             resultElement.innerHTML = this.formatResultContent(result.analysis || result.summary || JSON.stringify(result, null, 2));
+        }
+        
+        if (streamElement) {
+            streamElement.style.display = 'none';
+            streamElement.textContent = ''; // 按照用户要求，删除流式数据
         }
         
         // 更新阶段状态指示器
@@ -675,17 +721,8 @@ class DocumentReviewSystem {
             blankTab.innerHTML = '<h3>该阶段尚未开始</h3><p>请等待前面的阶段完成后再查看此阶段结果。</p>';
             const tabContent = document.querySelector('.tab-content');
             tabContent.appendChild(blankTab);
-        } else if (this.isAnalyzing && tabName !== 'realTime') {
-            // 如果正在分析中且选择的不是实时输出
-            if (stageStatus && stageStatus.textContent === '已完成') {
-                // 阶段已完成，显示结果
-                document.getElementById(`tab${tabName.charAt(0).toUpperCase() + tabName.slice(1)}`).classList.add('active');
-            } else {
-                // 阶段进行中，显示实时输出
-                document.getElementById('tabRealTime').classList.add('active');
-            }
         } else {
-            // 不在分析中或选择的是实时输出
+            // 无论是正在分析中(显示流式输出)还是已完成(显示结果)，都显示该标签页
             document.getElementById(`tab${tabName.charAt(0).toUpperCase() + tabName.slice(1)}`).classList.add('active');
         }
     }
@@ -695,13 +732,16 @@ class DocumentReviewSystem {
         if (!usage) return;
         
         // 获取本次要添加的token数量
-        const tokenIncrease = usage.total || usage.prompt_tokens + usage.completion_tokens || 0;
+        const inputTokens = usage.prompt_tokens || 0;
+        const outputTokens = usage.completion_tokens || 0;
+        const totalTokens = usage.total || (inputTokens + outputTokens);
         
         // 更新Token使用量
-        this.tokenCount += tokenIncrease;
+        this.tokenCount += totalTokens;
         
         // 计算费用
-        this.tokenCost = this.tokenCount * this.tokenRate;
+        const cost = (inputTokens * this.inputTokenRate) + (outputTokens * this.outputTokenRate);
+        this.tokenCost += cost;
         
         // 更新UI
         document.getElementById('tokenCount').textContent = this.tokenCount.toLocaleString();
@@ -724,7 +764,17 @@ class DocumentReviewSystem {
     }
 
     async generatePDF() {
+        const exportBtn = document.getElementById('exportPdf');
+        const originalText = exportBtn ? exportBtn.innerHTML : '';
+        
         try {
+            // 设置按钮加载状态
+            if (exportBtn) {
+                exportBtn.innerHTML = '<span class="loading" style="width: 16px; height: 16px; border-width: 2px;"></span> 正在生成...';
+                exportBtn.disabled = true;
+                exportBtn.style.cursor = 'not-allowed';
+            }
+
             // 显示生成中提示
             this.showNotification('正在生成PDF报告...', 'success');
             
@@ -1055,6 +1105,13 @@ class DocumentReviewSystem {
             // 确保临时元素被清理
             const tempContainers = document.querySelectorAll('div[style*="left: -9999px"]');
             tempContainers.forEach(container => container.remove());
+        } finally {
+            // 恢复按钮状态
+            if (exportBtn) {
+                exportBtn.innerHTML = originalText;
+                exportBtn.disabled = false;
+                exportBtn.style.cursor = 'pointer';
+            }
         }
     }
 
@@ -1143,6 +1200,7 @@ class DocumentReviewSystem {
         this.currentFileId = null;
         this.analysisSession = null;
         this.isAnalyzing = false;
+        this.completedStagesCount = 0; // 重置已完成阶段计数
         
         document.getElementById('fileInfo').innerHTML = '';
         document.getElementById('controlSection').style.display = 'none';
@@ -1151,6 +1209,13 @@ class DocumentReviewSystem {
         // 重置所有阶段状态，包括综合总结
         ['structure', 'design', 'logic', 'risk', 'summary'].forEach(stage => {
             this.updateStageProgress(stage, '等待开始');
+            
+            // 清空流式输出容器
+            const streamContainer = document.getElementById(`stream${stage.charAt(0).toUpperCase() + stage.slice(1)}`);
+            if (streamContainer) {
+                streamContainer.textContent = '';
+                streamContainer.style.display = 'none';
+            }
         });
         
         document.getElementById('progressFill').style.width = '0%';
